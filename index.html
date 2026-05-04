@@ -60,17 +60,27 @@
             pointer-events: none;
         }
 
+        /* แก้ไขเฉพาะส่วนนี้: UI ตัวละครผีสไตล์แคสเปอร์พิกเซล */
         .pixel-ghost {
-            width: 8px;
-            height: 8px;
-            background: white;
+            width: 4px;
+            height: 4px;
+            background: transparent;
+            /* สร้างรูปทรงโค้งมนและหางพริ้วไหวด้วย box-shadow */
             box-shadow: 
-                0 8px currentColor, 8px 8px currentColor, -8px 8px currentColor,
-                0 16px currentColor, 8px 16px currentColor, -8px 16px currentColor, 16px 16px currentColor, -16px 16px currentColor,
-                0 24px currentColor, 8px 24px currentColor, -8px 24px currentColor, 16px 24px currentColor, -16px 24px currentColor,
-                0 32px currentColor, 12px 32px currentColor, -12px 32px currentColor,
-                -8px 12px black, 8px 12px black;
-            animation: float 2s infinite ease-in-out;
+                /* หัว (บนสุด) */
+                8px 0 currentColor, 12px 0 currentColor, 16px 0 currentColor, 20px 0 currentColor,
+                /* หัว (ส่วนโค้ง) */
+                4px 4px currentColor, 8px 4px currentColor, 12px 4px currentColor, 16px 4px currentColor, 20px 4px currentColor, 24px 4px currentColor,
+                /* ตา (Row 1) */
+                0px 8px currentColor, 4px 8px currentColor, 8px 8px black, 12px 8px currentColor, 16px 8px currentColor, 20px 8px black, 24px 8px currentColor, 28px 8px currentColor,
+                /* ตัว (กลาง) */
+                0px 12px currentColor, 4px 12px currentColor, 8px 12px currentColor, 12px 12px currentColor, 16px 12px currentColor, 20px 12px currentColor, 24px 12px currentColor, 28px 12px currentColor,
+                0px 16px currentColor, 4px 16px currentColor, 8px 16px currentColor, 12px 16px currentColor, 16px 16px currentColor, 20px 16px currentColor, 24px 16px currentColor, 28px 16px currentColor,
+                0px 20px currentColor, 4px 20px currentColor, 8px 20px currentColor, 12px 20px currentColor, 16px 20px currentColor, 20px 20px currentColor, 24px 20px currentColor, 28px 20px currentColor,
+                /* หาง (ล่างสุด) */
+                4px 24px currentColor, 12px 24px currentColor, 20px 24px currentColor, 28px 24px currentColor;
+            animation: float 2.4s infinite ease-in-out;
+            filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); /* เพิ่มแสงเรืองรอบตัววิญญาณ */
         }
 
         .entity-name {
@@ -79,13 +89,13 @@
             color: white;
             padding: 2px 6px;
             border-radius: 4px;
-            margin-bottom: 35px;
+            margin-bottom: 25px; /* ปรับระยะชื่อลงมาเล็กน้อย */
             white-space: nowrap;
         }
 
         @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
+            0%, 100% { transform: translateY(0) scaleX(1); }
+            50% { transform: translateY(-12px) scaleX(1.05); } /* ให้ผีดูยืดหยุ่นขึ้นขณะลอย */
         }
 
         .grave {
