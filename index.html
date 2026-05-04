@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8-Bit Multiplayer Cute Graveyard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Mali:wght@400;700&display=swap');
+        
+        :root {
+            --primary: #DAB858;
+            --secondary: #90AC5B;
+            --accent-1: #51986B;
+            --accent-2: #217F75;
+            --dark-1: #1F636F;
+            --dark-2: #2F4858;
+            --ui-border: #2F4858;
+            --ui-bg: #FEF9E7;
+        }
+
+        body {
+            font-family: 'Mali', cursive;
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--dark-2);
+            image-rendering: pixelated;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            touch-action: none;
+        }
+
+        .world {
+            position: absolute;
+            width: 3000px;
+            height: 3000px;
+            background-color: var(--secondary);
+            background-image: 
+                radial-gradient(var(--accent-1) 15%, transparent 16%),
+                radial-gradient(var(--accent-1) 15%, transparent 16%);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+            transition: transform 0.15s steps(10);
+            border: 20px solid var(--dark-1);
+            box-sizing: border-box;
+        }
+
+        .entity {
+            position: absolute;
+            z-index: 100;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .pixel-ghost {
+            width: 8px;
+            height: 8px;
+            background: white;
+            box-shadow: 
+                0 8px currentColor, 8px 8px currentColor, -8px 8px currentColor,
+                0 16px currentColor, 8px 16px currentColor, -8px 16px currentColor, 16px 16px currentColor, -16px 16px currentColor,
+                0 24px currentColor, 8px 24px currentColor, -8px 24px currentColor, 16px 24px currentColor, -16px 24px currentColor,
+                0 32px currentColor, 12px 32px currentColor, -12px 32px currentColor,
+                -8px 12px black, 8px 12px black;
+            animation: float 2s infinite ease-in-out;
+        }
+
+        .entity-name {
+            font-size: 10px;
+            background: var(--dark-2);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 35px;
+            white-space: nowrap;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .grave {
+            position: absolute;
+            cursor: pointer;
+            width: 50px;
+            height: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            z-index: 50;
+        }
+
+        .ui-panel {
+            position: fixed;
+            background: var(--ui-bg);
+            border: 4px solid var(--ui-border);
+            z-index: 1000;
+            display: none;
+            box-shadow: 8px 8px 0px var(--dark-2);
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 12px;
+            color: var(--dark-2);
+        }
+
+        .pixel-button {
+            border: 3px solid var(--dark-2);
+            box-shadow: 3px 3px 0px var(--dark-2);
+            transition: all 0.1s;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .pixel-button:active {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px var(--dark-2);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(47, 72, 88, 0.6);
+            display: none;
+            z-index: 999;
+            backdrop-filter: blur(4px);
+        }
+
+        .create-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--primary);
+            border: 4px solid var(--dark-2);
+            padding: 12px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 500;
+            box-shadow: 6px 6px 0px var(--dark-2);
+            border-radius: 12px;
+            color: var(--dark-2);
+        }
+
+        .donate-link {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: var(--accent-2);
+            color: white;
+            border: 4px solid var(--dark-2);
+            padding: 10px 16px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 500;
+            box-shadow: 6px 6px 0px var(--dark-2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            transition: all 0.1s;
+        }
+
+        .grave-option.selected {
+            border-color: var(--primary);
+            background: #fffbf0;
+        }
+
+        #conn-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            font-size: 10px;
+            background: white;
+            color: var(--dark-2);
+            padding: 6px 12px;
+            border: 2px solid var(--dark-2);
+            border-radius: 20px;
+            z-index: 1000;
+        }
+
+        /* ปรับสไตล์ Input และ Textarea */
+        .pixel-input {
+            background-color: #ffffff !important;
+            color: #2F4858 !important; /* สีน้ำเงินเข้ม */
+            border: 3px solid #2F4858 !important;
+            padding: 8px !important;
+            width: 100%;
+            border-radius: 8px;
+            font-family: 'Mali', cursive;
+        }
+        
+        .pixel-input::placeholder {
+            color: #94a3b8 !important;
+        }
+
+        /* ปุ่ม AI ช่วยคิด */
+        #btn-gen-msg {
+            background-color: #2F4858 !important; 
+            color: #ffffff !important;           
+            border: 2px solid #000000 !important;
+            padding: 4px 8px !important;
+            font-weight: bold !important;
+            font-size: 10px !important;
+            box-shadow: 2px 2px 0px #000000;
+            z-index: 10;
+            cursor: pointer;
+        }
+        
+        #btn-gen-msg:active {
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px 0px #000000;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="conn-status">กำลังเริ่มต้น...</div>
+    <div class="world" id="world"></div>
+
+    <!-- UI: Read Grave -->
+    <div class="modal-overlay" id="read-overlay"></div>
+    <div class="ui-panel p-6" id="read-panel" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 320px; text-align: center;">
+        <div class="text-xs text-gray-400 mb-1">R.I.P.</div>
+        <h2 id="read-name" class="text-xl font-bold text-gray-800 mb-1 underline">ชื่อ</h2>
+        <p id="read-years" class="text-xs text-gray-500 mb-4">[ 1990 - 2024 ]</p>
+        <div class="bg-[#fdf2d2] p-4 border-2 border-dashed border-[#dab858] mb-4 text-sm italic text-gray-700" id="read-message">
+            ข้อความ...
+        </div>
+
+        <div id="ig-container" class="hidden mb-4">
+            <a href="#" id="ig-link-url" target="_blank" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full font-bold text-xs border-2 border-[#E1306C] text-[#E1306C] hover:bg-[#E1306C] hover:text-white transition-all w-full">
+                <span id="read-ig-name">@username</span>
+            </a>
+        </div>
+        
+        <div id="gemini-fortune-container" class="mt-2 mb-4 hidden border-t-2 border-[#dab858] pt-4">
+            <div class="text-[10px] text-accent-2 font-bold mb-1 uppercase tracking-widest">ทำนายชาติหน้า</div>
+            <div id="fortune-text" class="text-xs italic text-dark-1 bg-white/50 p-2 rounded"></div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <button id="btn-fortune" onclick="getFortune()" class="pixel-button bg-[#DAB858] px-6 py-2 text-xs font-bold text-white">✨ อ่านชะตาชาติหน้า</button>
+            <button onclick="closeUI('read')" class="pixel-button bg-gray-200 px-6 py-1 w-full font-bold text-gray-700">กลับไปเดินเล่น</button>
+            <!-- ปุ่มลบหลุมศพ -->
+            <button id="btn-delete-grave" onclick="handleDeleteGrave()" class="pixel-button bg-red-500 text-white px-6 py-1 w-full text-xs font-bold hidden mt-2">ถอนการจอง (ลบป้ายนี้)</button>
+        </div>
+    </div>
+
+    <!-- UI: Create Grave -->
+    <div class="modal-overlay" id="create-overlay"></div>
+    <div class="ui-panel p-5" id="create-panel" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 380px;">
+        <h2 class="text-lg font-bold mb-4 text-center border-b-2 border-black pb-2 text-dark-2">จารึกหลุมศพพิกเซล</h2>
+        
+        <div class="mb-4">
+            <label class="block text-xs font-bold mb-1 uppercase text-dark-1">1. เลือกรูปแบบหิน</label>
+            <div class="flex justify-between gap-2">
+                <div class="grave-option border-4 border-transparent p-1 cursor-pointer selected" onclick="selectGraveStyle(0)" id="style-0">
+                    <svg width="40" height="40" viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="80" fill="#7f8c8d" stroke="#333" stroke-width="8"/></svg>
+                </div>
+                <div class="grave-option border-4 border-transparent p-1 cursor-pointer" onclick="selectGraveStyle(1)" id="style-1">
+                    <svg width="40" height="40" viewBox="0 0 100 100"><path d="M20 100 V40 Q20 10 50 10 Q80 10 80 40 V100 Z" fill="#95a5a6" stroke="#333" stroke-width="8"/></svg>
+                </div>
+                <div class="grave-option border-4 border-transparent p-1 cursor-pointer" onclick="selectGraveStyle(2)" id="style-2">
+                    <svg width="40" height="40" viewBox="0 0 100 100"><path d="M10 100 L10 30 L50 5 L90 30 L90 100 Z" fill="#bdc3c7" stroke="#333" stroke-width="8"/></svg>
+                </div>
+                <div class="grave-option border-4 border-transparent p-1 cursor-pointer" onclick="selectGraveStyle(3)" id="style-3">
+                    <svg width="40" height="40" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="#576574" stroke="#333" stroke-width="8"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-3 text-sm">
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase">ชื่อผู้ตาย</label>
+                <input id="input-name" type="text" maxlength="15" class="pixel-input" placeholder="ชื่อ (สูงสุด 15 ตัว)">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase">ข้อความบนป้าย</label>
+                <div class="relative">
+                    <textarea id="input-msg" class="pixel-input h-20" placeholder="ข้อความบนป้าย..."></textarea>
+                    <button onclick="generateMessage()" id="btn-gen-msg" class="absolute right-2 bottom-2">✨ AI ช่วยคิด</button>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <div class="w-1/2">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">ปีเกิด - ปีตาย</label>
+                    <div class="flex gap-1">
+                        <input id="input-birth" type="number" class="pixel-input" placeholder="เกิด">
+                        <input id="input-death" type="number" class="pixel-input" placeholder="ตาย">
+                    </div>
+                </div>
+                <div class="w-1/2">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Instagram</label>
+                    <input id="input-ig" type="text" class="pixel-input" placeholder="@username">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-2 mt-5">
+            <button onclick="closeUI('create')" class="flex-1 pixel-button bg-gray-200 py-2 text-gray-700">ยกเลิก</button>
+            <button onclick="confirmCreateGrave()" class="flex-1 pixel-button bg-[#DAB858] text-white font-bold py-2">กดยืนยัน</button>
+        </div>
+    </div>
+
+    <a href="https://paypal.me/micksawaroot" target="_blank" class="donate-link">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+        <span>เลี้ยงกาแฟผู้พัฒนา</span>
+    </a>
+
+    <div class="create-btn" onclick="openCreateUI()">จองที่ดิน/สร้างหลุมศพ</div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const firebaseConfig = JSON.parse(__firebase_config);
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'graveyard-app';
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    
+    const WORLD_SIZE = 3000;
+    const BOUNDARY = 50;
+    const ghostColors = ["#ffffff", "#DAB858", "#90AC5B", "#51986B", "#217F75", "#1F636F", "#2F4858"];
+    const ghostNames = ["วิญญาณผู้พิทักษ์", "พิกเซลน้อย", "ผีขี้สงสัย", "ผู้มาเยือน", "เงาแห่งทุ่งหญ้า"];
+
+    let myId = null;
+    let myData = {
+        name: ghostNames[Math.floor(Math.random() * ghostNames.length)] + " #" + Math.floor(Math.random() * 999),
+        color: ghostColors[Math.floor(Math.random() * ghostColors.length)],
+        x: 1500,
+        y: 1500
+    };
+    let targetPos = { x: 1500, y: 1500 };
+    let graves = {};
+    let lastUpdate = 0;
+    const world = document.getElementById('world');
+    const connStatus = document.getElementById('conn-status');
+
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+    async function callGemini(prompt, sys = "") {
+        try {
+            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    systemInstruction: { parts: [{ text: sys }] }
+                })
+            });
+            const res = await resp.json();
+            return res.candidates?.[0]?.content?.parts?.[0]?.text || "ดวงจิตสื่อสารไม่ได้";
+        } catch (e) { return "สัญญาณวิญญาณขาดหาย"; }
+    }
+
+    function updatePlayerUI() {
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+        world.style.transform = `translate(${sw/2 - myData.x}px, ${sh/2 - myData.y}px)`;
+        renderEntity('me', myData);
+        
+        const now = Date.now();
+        if (now - lastUpdate > 300 && myId) {
+            setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myId), {
+                ...myData,
+                lastActive: serverTimestamp()
+            }, { merge: true }).catch(() => {});
+            lastUpdate = now;
+        }
+    }
+
+    function renderEntity(id, data) {
+        let el = document.getElementById('ghost-' + id);
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'ghost-' + id;
+            el.className = 'entity';
+            el.innerHTML = `<div class="entity-name">${data.name}</div><div class="pixel-ghost"></div>`;
+            world.appendChild(el);
+        }
+        el.style.left = data.x + 'px';
+        el.style.top = data.y + 'px';
+        el.querySelector('.pixel-ghost').style.color = data.color;
+    }
+
+    function renderGraves() {
+        // ลบเฉพาะป้ายเก่าที่ไม่มีในข้อมูลล่าสุด
+        const currentGraveIds = Object.keys(graves);
+        document.querySelectorAll('.grave').forEach(g => {
+            if (!currentGraveIds.includes(g.dataset.id)) g.remove();
+        });
+
+        currentGraveIds.forEach(id => {
+            const data = graves[id];
+            let div = document.querySelector(`.grave[data-id="${id}"]`);
+            if (!div) {
+                div = document.createElement('div');
+                div.className = 'grave';
+                div.dataset.id = id;
+                div.onclick = (e) => { e.stopPropagation(); showInfo(id, data); };
+                world.appendChild(div);
+            }
+            div.style.left = data.x + 'px';
+            div.style.top = data.y + 'px';
+            div.innerHTML = `
+                <svg width="50" height="50" viewBox="0 0 100 100">
+                    ${getGravePath(data.style)}
+                    <text x="50" y="65" font-family="Mali" font-size="12" font-weight="bold" text-anchor="middle" fill="#333">${data.name.substring(0,6)}</text>
+                </svg>
+            `;
+        });
+    }
+
+    function getGravePath(style) {
+        const paths = [
+            '<rect x="20" y="20" width="60" height="80" fill="#7f8c8d" stroke="#333" stroke-width="8"/>',
+            '<path d="M20 100 V40 Q20 10 50 10 Q80 10 80 40 V100 Z" fill="#95a5a6" stroke="#333" stroke-width="8"/>',
+            '<path d="M10 100 L10 30 L50 5 L90 30 L90 100 Z" fill="#bdc3c7" stroke="#333" stroke-width="8"/>',
+            '<circle cx="50" cy="50" r="40" fill="#576574" stroke="#333" stroke-width="8"/>'
+        ];
+        return paths[style] || paths[0];
+    }
+
+    function gameLoop() {
+        const dx = targetPos.x - myData.x;
+        const dy = targetPos.y - myData.y;
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+            myData.x += dx * 0.1;
+            myData.y += dy * 0.1;
+            updatePlayerUI();
+        }
+        requestAnimationFrame(gameLoop);
+    }
+
+    async function init() {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+            await signInAnonymously(auth);
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                myId = user.uid;
+                connStatus.innerText = "📍 " + myData.name;
+                
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'players'), (s) => {
+                    s.docChanges().forEach(c => {
+                        if (c.doc.id === myId) return;
+                        if (c.type === 'removed') {
+                            document.getElementById('ghost-' + c.doc.id)?.remove();
+                        } else {
+                            renderEntity(c.doc.id, c.doc.data());
+                        }
+                    });
+                });
+
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'graves'), (s) => {
+                    graves = {};
+                    s.forEach(doc => { graves[doc.id] = doc.data(); });
+                    renderGraves();
+                }, (err) => console.error("Firestore error:", err));
+            }
+        });
+    }
+
+    window.handleWorldClick = (e) => {
+        if (e.target.closest('.ui-panel') || e.target.closest('.create-btn') || e.target.closest('.donate-link')) return;
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+        targetPos.x = clamp(e.clientX - (sw/2 - myData.x), BOUNDARY, WORLD_SIZE - BOUNDARY);
+        targetPos.y = clamp(e.clientY - (sh/2 - myData.y), BOUNDARY, WORLD_SIZE - BOUNDARY);
+    };
+
+    let selectedStyle = 0;
+    window.selectGraveStyle = (i) => {
+        selectedStyle = i;
+        document.querySelectorAll('.grave-option').forEach((el, idx) => el.classList.toggle('selected', idx === i));
+    };
+
+    window.openCreateUI = () => { document.getElementById('create-overlay').style.display = 'block'; document.getElementById('create-panel').style.display = 'block'; };
+    window.closeUI = (t) => { document.getElementById(t + '-overlay').style.display = 'none'; document.getElementById(t + '-panel').style.display = 'none'; };
+
+    window.confirmCreateGrave = async () => {
+        if (!myId) return;
+        const name = document.getElementById('input-name').value || "ผู้นามบัตร";
+        const msg = document.getElementById('input-msg').value || "...";
+        const ig = document.getElementById('input-ig').value.replace('@', '').trim();
+        
+        try {
+            await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'graves')), {
+                ownerId: myId,
+                x: myData.x,
+                y: myData.y,
+                name,
+                years: `${document.getElementById('input-birth').value || '?'} - ${document.getElementById('input-death').value || '?'}`,
+                msg,
+                ig,
+                style: selectedStyle,
+                createdAt: serverTimestamp()
+            });
+            closeUI('create');
+        } catch (e) {
+            console.error("Save error", e);
+        }
+    };
+
+    let readingId = null;
+    let readingData = null;
+    window.showInfo = (id, data) => {
+        readingId = id; 
+        readingData = data;
+        document.getElementById('read-name').innerText = data.name;
+        document.getElementById('read-years').innerText = `[ ${data.years} ]`;
+        document.getElementById('read-message').innerText = data.msg;
+        
+        const igC = document.getElementById('ig-container');
+        if (data.ig) {
+            igC.classList.remove('hidden');
+            document.getElementById('read-ig-name').innerText = '@' + data.ig;
+            document.getElementById('ig-link-url').href = `https://instagram.com/${data.ig}`;
+        } else igC.classList.add('hidden');
+
+        // แสดงปุ่มลบเฉพาะเจ้าของป้าย
+        const deleteBtn = document.getElementById('btn-delete-grave');
+        if (data.ownerId === myId) {
+            deleteBtn.classList.remove('hidden');
+        } else {
+            deleteBtn.classList.add('hidden');
+        }
+        
+        document.getElementById('gemini-fortune-container').classList.add('hidden');
+        document.getElementById('read-overlay').style.display = 'block';
+        document.getElementById('read-panel').style.display = 'block';
+    };
+
+    window.handleDeleteGrave = async () => {
+        if (!readingId || !myId) return;
+        
+        // ตรวจสอบ client-side ก่อนส่ง request
+        if (readingData.ownerId !== myId) {
+            console.warn("ไม่ได้รับอนุญาตให้ลบป้ายนี้");
+            return;
+        }
+
+        try {
+            // ลบจาก Firestore
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'graves', readingId));
+            
+            // ลบจาก local state ทันทีเพื่อความลื่นไหล
+            delete graves[readingId];
+            renderGraves();
+            
+            closeUI('read');
+        } catch (e) {
+            console.error("Delete error", e);
+        }
+    };
+
+    window.getFortune = async () => {
+        const text = document.getElementById('fortune-text');
+        document.getElementById('gemini-fortune-container').classList.remove('hidden');
+        text.innerText = "กำลังมองผ่านกระจกกรรม...";
+        const fortune = await callGemini(`ทำนายชาติหน้าให้คนชื่อ ${readingData.name} ที่มีคำจารึกว่า ${readingData.msg}`, "คุณเป็นรุกขเทวดาทำนายชาติหน้าสั้นๆ 1 ประโยค");
+        text.innerText = fortune;
+    };
+
+    window.generateMessage = async () => {
+        const name = document.getElementById('input-name').value;
+        const btn = document.getElementById('btn-gen-msg');
+        if (!name) return;
+        btn.innerText = "⏳...";
+        const msg = await callGemini(`เขียนคำอาลัยสั้นๆ ให้ ${name}`, "ตอบ 1 ประโยคสั้นๆ");
+        document.getElementById('input-msg').value = msg.replace(/"/g, '');
+        btn.innerText = "✨ AI ช่วยคิด";
+    };
+
+    document.getElementById('game-container').addEventListener('mousedown', window.handleWorldClick);
+    window.onload = () => { init(); gameLoop(); };
+</script>
+</body>
+</html>
