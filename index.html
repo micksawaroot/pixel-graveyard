@@ -445,8 +445,10 @@ const YOUR_FIREBASE_CONFIG = {
         requestAnimationFrame(gameLoop);
     }
 
-    async function init() {
-        if (isMock) {
+// ค้นหาฟังก์ชัน init() เดิมและลองตรวจสอบจุดเหล่านี้:
+
+async function init() {
+    if (isMock) {
             connStatus.innerText = "⚠️ กรุณาตั้งค่า Firebase Config ในโค้ด";
             myId = "local-" + Math.random().toString(36).substr(2, 9);
             gameLoop();
@@ -454,47 +456,55 @@ const YOUR_FIREBASE_CONFIG = {
             return;
         }
 
-        try {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
+    try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
 
-            if (initialToken) {
-                await signInWithCustomToken(auth, initialToken);
-            } else {
-                await signInAnonymously(auth);
-            }
+        // ล็อกอินแบบไม่ระบุตัวตน
+        const userCredential = await signInAnonymously(auth);
+        myId = userCredential.user.uid;
+        console.log("Logged in as:", myId);
 
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    myId = user.uid;
-                    connStatus.innerText = "👻 " + myData.name;
-                    
-                    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'players'), (s) => {
-                        s.docChanges().forEach(c => {
-                            if (c.doc.id === myId) return;
-                            if (c.type === 'removed') document.getElementById('ghost-' + c.doc.id)?.remove();
-                            else renderEntity(c.doc.id, c.doc.data());
-                        });
-                    }, (err) => console.log("Player Sync Error:", err));
+        // 1. ส่งข้อมูลตัวเองขึ้นไปทันทีที่โหลดครั้งแรก
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myId), {
+            ...myData,
+            lastActive: serverTimestamp()
+        });
 
-                    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'graves'), (s) => {
-                        const newGraves = {};
-                        s.forEach(d => { newGraves[d.id] = { ...d.data(), id: d.id }; });
-                        graves = newGraves;
-                        renderGraves();
-                    }, (err) => console.log("Grave Sync Error:", err));
+        // 2. ฟังคำสั่งการเคลื่อนที่ของผู้เล่นคนอื่น (Real-time Sync)
+        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'players'), (s) => {
+            s.docChanges().forEach(c => {
+                const id = c.doc.id;
+                if (id === myId) return; // ไม่วาดตัวเองซ้ำ (เพราะมี renderEntity('me') อยู่แล้ว)
 
-                    gameLoop();
-                    updatePlayerUI();
+                if (c.type === 'removed') {
+                    const el = document.getElementById('ghost-' + id);
+                    if (el) el.remove();
+                } else {
+                    // วาดหรืออัปเดตตำแหน่งผู้เล่นคนอื่น
+                    renderEntity(id, c.doc.data());
                 }
             });
+        });
 
-        } catch (e) {
-            console.error("Init Error:", e);
-            connStatus.innerText = "❌ การเชื่อมต่อล้มเหลว";
-        }
+        // 3. ฟังคำสั่งเรื่องหลุมศพ
+        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'graves'), (s) => {
+            const newGraves = {};
+            s.forEach(d => { newGraves[d.id] = { ...d.data(), id: d.id }; });
+            graves = newGraves;
+            renderGraves();
+        });
+
+        connStatus.innerText = "👻 " + myData.name;
+        gameLoop();
+        updatePlayerUI();
+
+    } catch (e) {
+        console.error("Init Error:", e);
+        connStatus.innerText = "❌ เชื่อมต่อไม่ได้: " + e.message;
     }
+}
 
     window.handleWorldClick = (e) => {
         if (e.target.closest('.ui-panel') || e.target.closest('.create-btn') || e.target.closest('.donate-link')) return;
