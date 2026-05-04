@@ -152,23 +152,30 @@
             color: var(--dark-2);
         }
 
+        /* ปรับปรุงปุ่มเลี้ยงกาแฟให้อยู่มุมซ้ายบน */
         .donate-link {
             position: fixed;
-            bottom: 30px;
-            left: 30px;
+            top: 20px;
+            left: 20px;
             background: var(--accent-2);
             color: white;
             border: 4px solid var(--dark-2);
-            padding: 10px 16px;
+            padding: 8px 14px;
+            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
             z-index: 500;
-            box-shadow: 6px 6px 0px var(--dark-2);
+            box-shadow: 4px 4px 0px var(--dark-2);
             border-radius: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
             text-decoration: none;
+            transition: transform 0.1s;
+        }
+        .donate-link:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px var(--dark-2);
         }
 
         .grave-option.selected {
@@ -301,7 +308,7 @@
         <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
         </svg>
-        <span>เลี้ยงกาแฟผู้พัฒนา</span>
+        <span>เลี้ยงกาแฟ</span>
     </a>
 
     <div class="create-btn" onclick="openCreateUI()">จองที่ดิน/สร้างหลุมศพ</div>
@@ -309,26 +316,25 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, serverTimestamp, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // ==========================================
-    // ⚙️ config
-    // ==========================================
-
-
-    const YOUR_FIREBASE_CONFIG = V_FIREBASE_API_KEY;
-
+    // สำหรับใช้กับ Vercel Env Variables
+    const YOUR_FIREBASE_CONFIG = {
+        apiKey: "V_FIREBASE_API_KEY",
+        authDomain: "V_FIREBASE_AUTH_DOMAIN",
+        projectId: "V_FIREBASE_PROJECT_ID",
+        storageBucket: "V_FIREBASE_STORAGE_BUCKET",
+        messagingSenderId: "V_FIREBASE_MESSAGING_SENDER_ID",
+        appId: "V_FIREBASE_APP_ID",
+        measurementId: "V_FIREBASE_MEASUREMENT_ID"
+    };
 
     const APP_ID = "pixel-graveyard-v1";
-    // ==========================================
-
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : YOUR_FIREBASE_CONFIG;
-    const appId = typeof __app_id !== 'undefined' ? __app_id : APP_ID;
-    const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
     let app, auth, db;
-    const isMock = firebaseConfig.apiKey.includes("ใส่_");
+    // ตรวจสอบว่าเป็น Mock หรือไม่ (ใช้ V_ เพราะจะถูกแทนที่)
+    const isMock = YOUR_FIREBASE_CONFIG.apiKey.includes("V_FIREBASE");
     
     const WORLD_SIZE = 3000;
     const BOUNDARY = 50;
@@ -362,8 +368,9 @@
         renderEntity('me', myData);
         
         const now = Date.now();
+        // ส่งตำแหน่งขึ้น Firestore ทุกๆ 300ms
         if (now - lastUpdate > 300 && myId && db && !isMock) {
-            setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myId), {
+            setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'players', myId), {
                 ...myData,
                 lastActive: serverTimestamp()
             }, { merge: true }).catch(() => {});
@@ -435,66 +442,57 @@
         requestAnimationFrame(gameLoop);
     }
 
-// ค้นหาฟังก์ชัน init() เดิมและลองตรวจสอบจุดเหล่านี้:
-
-async function init() {
-    if (isMock) {
-            connStatus.innerText = "⚠️ กรุณาตั้งค่า Firebase Config ในโค้ด";
-            myId = "local-" + Math.random().toString(36).substr(2, 9);
+    async function init() {
+        if (isMock) {
+            connStatus.innerText = "⚠️ กรุณาตั้งค่า Firebase Config";
             gameLoop();
             updatePlayerUI();
             return;
         }
 
-    try {
-        app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
+        try {
+            app = initializeApp(YOUR_FIREBASE_CONFIG);
+            auth = getAuth(app);
+            db = getFirestore(app);
 
-        // ล็อกอินแบบไม่ระบุตัวตน
-        const userCredential = await signInAnonymously(auth);
-        myId = userCredential.user.uid;
-        console.log("Logged in as:", myId);
+            const userCredential = await signInAnonymously(auth);
+            myId = userCredential.user.uid;
 
-        // 1. ส่งข้อมูลตัวเองขึ้นไปทันทีที่โหลดครั้งแรก
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myId), {
-            ...myData,
-            lastActive: serverTimestamp()
-        });
-
-        // 2. ฟังคำสั่งการเคลื่อนที่ของผู้เล่นคนอื่น (Real-time Sync)
-        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'players'), (s) => {
-            s.docChanges().forEach(c => {
-                const id = c.doc.id;
-                if (id === myId) return; // ไม่วาดตัวเองซ้ำ (เพราะมี renderEntity('me') อยู่แล้ว)
-
-                if (c.type === 'removed') {
-                    const el = document.getElementById('ghost-' + id);
-                    if (el) el.remove();
-                } else {
-                    // วาดหรืออัปเดตตำแหน่งผู้เล่นคนอื่น
-                    renderEntity(id, c.doc.data());
-                }
+            // 1. ส่งข้อมูลตัวเองขึ้นไปทันที
+            await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'players', myId), {
+                ...myData,
+                lastActive: serverTimestamp()
             });
-        });
 
-        // 3. ฟังคำสั่งเรื่องหลุมศพ
-        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'graves'), (s) => {
-            const newGraves = {};
-            s.forEach(d => { newGraves[d.id] = { ...d.data(), id: d.id }; });
-            graves = newGraves;
-            renderGraves();
-        });
+            // 2. ฟังข้อมูลผู้เล่นอื่น (Multiplayer)
+            onSnapshot(collection(db, 'artifacts', APP_ID, 'public', 'data', 'players'), (s) => {
+                s.docChanges().forEach(c => {
+                    if (c.doc.id === myId) return;
+                    if (c.type === 'removed') {
+                        document.getElementById('ghost-' + c.doc.id)?.remove();
+                    } else {
+                        renderEntity(c.doc.id, c.doc.data());
+                    }
+                });
+            });
 
-        connStatus.innerText = "👻 " + myData.name;
-        gameLoop();
-        updatePlayerUI();
+            // 3. ฟังข้อมูลหลุมศพ
+            onSnapshot(collection(db, 'artifacts', APP_ID, 'public', 'data', 'graves'), (s) => {
+                const newGraves = {};
+                s.forEach(d => { newGraves[d.id] = { ...d.data(), id: d.id }; });
+                graves = newGraves;
+                renderGraves();
+            });
 
-    } catch (e) {
-        console.error("Init Error:", e);
-        connStatus.innerText = "❌ เชื่อมต่อไม่ได้: " + e.message;
+            connStatus.innerText = "👻 " + myData.name;
+            gameLoop();
+            updatePlayerUI();
+
+        } catch (e) {
+            console.error("Init Error:", e);
+            connStatus.innerText = "❌ เชื่อมต่อล้มเหลว";
+        }
     }
-}
 
     window.handleWorldClick = (e) => {
         if (e.target.closest('.ui-panel') || e.target.closest('.create-btn') || e.target.closest('.donate-link')) return;
@@ -543,7 +541,7 @@ async function init() {
         const death = document.getElementById('input-death').value || '?';
         
         try {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'graves'), {
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'graves'), {
                 ownerId: myId,
                 x: myData.x,
                 y: myData.y,
@@ -593,7 +591,7 @@ async function init() {
         btn.innerText = "กำลังลบ...";
 
         try {
-            const graveRef = doc(db, 'artifacts', appId, 'public', 'data', 'graves', readingId);
+            const graveRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'graves', readingId);
             await deleteDoc(graveRef);
             closeUI('delete');
             closeUI('read');
