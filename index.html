@@ -208,7 +208,7 @@
 <body>
 
 <div id="game-container">
-    <div id="conn-status">กำลังข้ามแดนวิญญาณ...</div>
+    <div id="conn-status">กำลังเชื่อมต่อ...</div>
     <div class="world" id="world"></div>
 
     <!-- UI: Read Grave -->
@@ -227,14 +227,8 @@
             </a>
         </div>
         
-        <div id="gemini-fortune-container" class="mt-2 mb-4 hidden border-t-2 border-[#dab858] pt-4">
-            <div class="text-[10px] text-accent-2 font-bold mb-1 uppercase tracking-widest">คำทำนายชาติหน้า</div>
-            <div id="fortune-text" class="text-xs italic text-dark-1 bg-white/50 p-2 rounded"></div>
-        </div>
-
         <div class="flex flex-col gap-2">
-            <button id="btn-fortune" onclick="getFortune()" class="pixel-button bg-[#DAB858] px-6 py-2 text-xs font-bold text-white">✨ อ่านชะตาชาติหน้า</button>
-            <button onclick="closeUI('read')" class="pixel-button bg-gray-200 px-6 py-1 w-full font-bold text-gray-700">กลับไปเดินเล่น</button>
+            <button onclick="closeUI('read')" class="pixel-button bg-gray-200 px-6 py-2 w-full font-bold text-gray-700">กลับไปเดินเล่น</button>
             <button id="btn-delete-grave" onclick="openDeleteConfirm()" class="pixel-button bg-red-500 text-white px-6 py-1 w-full text-xs font-bold hidden mt-2">ถอนการจอง (ลบป้ายนี้)</button>
         </div>
     </div>
@@ -268,11 +262,8 @@
                 <input id="input-name" type="text" maxlength="15" class="pixel-input" placeholder="ชื่อ (สูงสุด 15 ตัว)">
             </div>
             <div>
-                <label class="text-[10px] font-bold text-gray-500 uppercase">ข้อความบนป้าย (AI จะเขียนลงที่นี่)</label>
-                <div class="relative">
-                    <textarea id="input-msg" class="pixel-input h-20" maxlength="100" placeholder="คำสุดท้ายที่คุณอยากบอก..."></textarea>
-                    <button onclick="generateMessage()" id="btn-gen-msg" class="absolute right-2 bottom-2 bg-dark-2 text-dark-2 px-2 py-1 text-[10px] rounded border border-black cursor-pointer hover:bg-black transition-colors">✨ AI ช่วยคิด</button>
-                </div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase">ข้อความบนป้าย</label>
+                <textarea id="input-msg" class="pixel-input h-24" maxlength="100" placeholder="คำสุดท้ายที่คุณอยากบอก..."></textarea>
             </div>
             <div class="flex gap-2">
                 <div class="w-1/2">
@@ -299,7 +290,7 @@
     <div class="modal-overlay" id="delete-overlay"></div>
     <div class="ui-panel p-6 text-center" id="delete-panel" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px;">
         <div class="mb-4 text-red-500 font-bold">⚠️ ยืนยันการลบ</div>
-        <p class="text-sm mb-6 text-gray-600">วิญญาณจะหายไปตลอดกาล... คุณแน่ใจว่าจะถอนป้ายนี้ใช่ไหม?</p>
+        <p class="text-sm mb-6 text-gray-600">ป้ายจะหายไปตลอดกาล... คุณแน่ใจว่าจะถอนป้ายนี้ใช่ไหม?</p>
         <div class="flex gap-2">
             <button onclick="closeUI('delete')" class="flex-1 pixel-button bg-gray-200 py-2">ไม่ลบ</button>
             <button id="btn-final-delete" onclick="handleDeleteGrave()" class="flex-1 pixel-button bg-red-500 text-white font-bold py-2">ลบป้าย</button>
@@ -321,13 +312,41 @@
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, serverTimestamp, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // --- ส่วนแก้ไขเพื่อให้รัน Local ได้ ---
-    const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{"apiKey":"MOCK_KEY","authDomain":"mock.firebaseapp.com","projectId":"mock-project","storageBucket":"mock.appspot.com","messagingSenderId":"000","appId":"000"}';
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'graveyard-local-debug';
+    // ==========================================
+    // ⚙️ config
+    // ==========================================
+
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCB49GUDxcbP5D9hU93qTNjpHLlVQ3e6N8",
+  authDomain: "pixel-graveyard.firebaseapp.com",
+  projectId: "pixel-graveyard",
+  storageBucket: "pixel-graveyard.firebasestorage.app",
+  messagingSenderId: "34611662793",
+  appId: "1:34611662793:web:dabe4c97384b6761992218",
+  measurementId: "G-CMQXMXB71P"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
+    const APP_ID = "pixel-graveyard-v1";
+    // ==========================================
+
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : YOUR_FIREBASE_CONFIG;
+    const appId = typeof __app_id !== 'undefined' ? __app_id : APP_ID;
     const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-    const apiKey = ""; // สำหรับ Gemini API
 
     let app, auth, db;
+    const isMock = firebaseConfig.apiKey.includes("ใส่_");
     
     const WORLD_SIZE = 3000;
     const BOUNDARY = 50;
@@ -354,30 +373,6 @@
         return div.innerText;
     }
 
-    async function callGemini(prompt, sys = "") {
-        let retries = 5;
-        let delay = 1000;
-        while (retries > 0) {
-            try {
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        systemInstruction: { parts: [{ text: sys }] }
-                    })
-                });
-                const res = await resp.json();
-                return res.candidates?.[0]?.content?.parts?.[0]?.text || "ดวงวิญญาณเงียบงัน...";
-            } catch (e) {
-                retries--;
-                if (retries === 0) return "การสื่อสารขัดข้อง...";
-                await new Promise(r => setTimeout(r, delay));
-                delay *= 2;
-            }
-        }
-    }
-
     function updatePlayerUI() {
         const sw = window.innerWidth;
         const sh = window.innerHeight;
@@ -385,7 +380,7 @@
         renderEntity('me', myData);
         
         const now = Date.now();
-        if (now - lastUpdate > 300 && myId && db && !firebaseConfigStr.includes("MOCK_KEY")) {
+        if (now - lastUpdate > 300 && myId && db && !isMock) {
             setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myId), {
                 ...myData,
                 lastActive: serverTimestamp()
@@ -459,17 +454,15 @@
     }
 
     async function init() {
-        try {
-            // กรณีรันบนเครื่องตัวเอง (Local) และไม่ได้ใส่ Config จริง
-            if (firebaseConfigStr.includes("MOCK_KEY")) {
-                connStatus.innerText = "👻 (Local Mode) " + myData.name;
-                myId = "local-ghost-" + Math.random().toString(36).substr(2, 9);
-                gameLoop();
-                updatePlayerUI();
-                return;
-            }
+        if (isMock) {
+            connStatus.innerText = "⚠️ กรุณาตั้งค่า Firebase Config ในโค้ด";
+            myId = "local-" + Math.random().toString(36).substr(2, 9);
+            gameLoop();
+            updatePlayerUI();
+            return;
+        }
 
-            const firebaseConfig = JSON.parse(firebaseConfigStr);
+        try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
@@ -507,7 +500,7 @@
 
         } catch (e) {
             console.error("Init Error:", e);
-            connStatus.innerText = "❌ เกิดข้อผิดพลาดในการเชื่อมต่อ";
+            connStatus.innerText = "❌ การเชื่อมต่อล้มเหลว";
         }
     }
 
@@ -542,12 +535,8 @@
     };
 
     window.confirmCreateGrave = async () => {
-        if (!myId) return;
-        
-        // ถ้าเป็น Local Mode จะไม่เซฟลง Firebase
-        if (firebaseConfigStr.includes("MOCK_KEY")) {
-            alert("Local Mode: ระบบจะไม่บันทึกข้อมูลลงฐานข้อมูลจริง");
-            closeUI('create');
+        if (!myId || isMock) {
+            alert("ไม่สามารถบันทึกได้เนื่องจากไม่ได้ตั้งค่า Firebase");
             return;
         }
 
@@ -600,7 +589,6 @@
         if (myId && data.ownerId === myId) deleteBtn.classList.remove('hidden');
         else deleteBtn.classList.add('hidden');
         
-        document.getElementById('gemini-fortune-container').classList.add('hidden');
         document.getElementById('read-overlay').style.display = 'block';
         document.getElementById('read-panel').style.display = 'block';
     };
@@ -619,41 +607,10 @@
             closeUI('read');
         } catch (e) { 
             console.error("Delete Fail:", e);
-            alert("ลบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
         } finally {
             btn.disabled = false;
             btn.innerText = "ลบป้าย";
         }
-    };
-
-    window.getFortune = async () => {
-        if(!readingData) return;
-        const text = document.getElementById('fortune-text');
-        document.getElementById('gemini-fortune-container').classList.remove('hidden');
-        text.innerText = "กำลังอ่านกระแสวิญญาณ...";
-        const fortune = await callGemini(
-            `ทำนายชาติหน้าให้คนชื่อ ${readingData.name} ที่มีคำจารึกว่า ${readingData.msg}`, 
-            "คุณเป็นผู้คุมวิญญาณทำนายชาติหน้าสั้นๆ 1 ประโยคห้ามยาวเกินไป"
-        );
-        text.innerText = fortune;
-    };
-
-    window.generateMessage = async () => {
-        const name = document.getElementById('input-name').value;
-        const btn = document.getElementById('btn-gen-msg');
-        if (!name) {
-            alert("ระบุชื่อผู้ตายก่อนให้ AI ช่วยคิดนะครับ");
-            return;
-        }
-        btn.innerText = "⌛";
-        btn.disabled = true;
-        
-        const msg = await callGemini(`เขียนคำอาลัยสั้นๆ ให้ ${name}`, "ตอบ 1 ประโยคสั้นๆ ที่กินใจและดูสงบ ห้ามใส่เครื่องหมายคำพูด");
-        const inputField = document.getElementById('input-msg');
-        inputField.value = msg.replace(/"/g, '').trim();
-        
-        btn.innerText = "✨ AI ช่วยคิด";
-        btn.disabled = false;
     };
 
     document.getElementById('game-container').addEventListener('mousedown', window.handleWorldClick);
